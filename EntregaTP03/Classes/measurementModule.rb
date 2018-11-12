@@ -1,15 +1,18 @@
 module Measurement
-    class Hash
-        def self.createWithClass(className)
-            Hash.new  {|h,k| h[k] = Object.const_get(className).new}
-        end
-        def self.createWithClassWithArgs(className, *args)
-            Hash.new  {|h,k| h[k] = Object.const_get(className).new(args)}
-        end
-        def inform(unit="", method_name=:avg)
-            self.reduce("") {|str, (k, v)| str + "#{k} has: #{v.call(method_name)}#{unit}\n"}
-        end
+end
+class Hash
+    include Measurement
+    def self.createWithClass(className)
+        Hash.new  {|h,k| h[k] = Object.const_get(className).new}
     end
+    def self.createWithClassWithArgs(className, *args)
+        Hash.new  {|h,k| h[k] = Object.const_get(className).new(*args)}
+    end
+    def inform(unit="", method_name=:avg)
+        self.reduce("") {|str, (k, v)| str + "#{k} has: #{v.send(method_name)}#{unit}\n"}
+    end
+end
+module Measurement
 #---------------------Extreme-Day(Coldes-or-Hotest)------------------
     class ExtremeDay
         @temp
@@ -18,10 +21,14 @@ module Measurement
         attr_reader :day, :temp
         def initialize (operator = :<)
             @operator = operator
-            @day = @temp = Float::NAN
+            @day = @temp = nil
         end
-        def check(_temp, _day)
-            if(@temp.send(@operator, _temp))then
+        def checkTempTo(_temp, _day)
+            if(nil == @temp)then
+                @temp = _temp
+                @day = _day
+            end
+            if(_temp.send(@operator, @temp))then
                 @temp = _temp
                 @day = _day
             end
@@ -30,11 +37,10 @@ module Measurement
     class ExtremeDayInTime
         @hash
         def initialize(operator)
-            @hash = Hash.createWithClassWithArgs('ExtremeDay', operator)
-            @hash = Hash.createWithClassWithArgs('ExtremeDay', operator)
+            @hash = Hash.createWithClassWithArgs('Measurement::ExtremeDay', operator)
         end
-        def check(to, temp, day)
-            @hash[to].check(temp, day)
+        def checkTempTo(to, _temp, _day)
+            (@hash[to]).checkTempTo(_temp, _day)
         end
         def temp(from)
             @hash[from].temp
@@ -43,7 +49,7 @@ module Measurement
             @hash[from].day
         end
         def to_s()
-            @hash.inform("ºC", :avg)
+            @hash.inform("", :day)
         end
     end
 #-------------------END-Extreme-Day(Coldes or Hotest)----------------
@@ -65,10 +71,11 @@ module Measurement
     end
     class AverageInTime
         @avgs
-        @unit = "ºC"
+        @unit="ºC"
         attr_writer :unit
         def initialize
-            @avgs = Hash.createWithClass 'AverageNumber'
+            @unit="ºC"
+            @avgs = Hash.createWithClass 'Measurement::AverageNumber'
         end
     
         def increment(to, value)
@@ -105,16 +112,18 @@ module Measurement
             return a > b ? a : b
         end
         def to_s
-            @max - @min
+            (@max - @min).to_s
         end
         private :minValue, :maxValue
     end
 
     class ThermalAmplitudeInTime
         @hash
-
+        @unit
+        attr_writer :unit
         def initialize
-            @hash = Hash.createWithClass 'ThermalAmplitude'
+            @unit ="ºC"
+            @hash = Hash.createWithClass 'Measurement::ThermalAmplitude'
         end
 
         def add(to, value)
@@ -129,7 +138,7 @@ module Measurement
             @hash[from].max
         end
         def to_s()
-            @avgs.inform(@unit, :to_s)
+            @hash.inform(@unit, :to_s)
         end
     end 
 #------------------------END-Thermal-Amplitude-----------------------

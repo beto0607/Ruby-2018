@@ -1,15 +1,13 @@
 GEM
   remote: https://rubygems.org/
   specs:
-    metaclass (0.0.4)
-    mocha (1.7.0)
-      metaclass (~> 0.0.1)
+    minitest (5.11.3)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
-  mocha (~> 1.7)
+  minitest (~> 5.11)
 
 BUNDLED WITH
    1.17.1

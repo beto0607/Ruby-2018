@@ -44,9 +44,35 @@ class WeatherParser
         @precipitationsAVG          = AverageInTime.new
         @precipitationsAVG.unit     = ""
 
-        @instrumentFailure          = Hash.new  #key-> Instrument's name; value-> fails counter
-        @instrumentFailure.default  = 0 #Hash.new (0) didn't work
+        @instrumentFailure          = {"thermometer"=> 0.0,"thermal_sensation"=>0.0,"pluviometer"=>0.0,"hygrometer"=>0.0}  #key-> Instrument's name; value-> fails counter
+        @instrumentFailure.default  = 0.0 #Hash.new (0) didn't work
+
         @lineCounter                = 0
+    end
+    def readFolder(folder)
+        if(!File.exists? (folder))then
+            puts "File or folder not found"
+            raise IOError
+            return
+        end
+
+        if(File.directory?(folder))then
+            files = Dir.entries(folder).select {|f| /(.csv)$/.match(f)}
+            if files.length == 0
+                puts "Folder don't have any .csv"
+                raise IOError
+                return
+            end
+            self.readFiles(files.map {|f| folder+f})
+        else
+            if (!(/(.csv)$/.match(folder)))
+                puts "File isn't a .csv"
+                raise IOError
+                return
+            end
+            self.readFile(folder)
+        end
+        
     end
     def readFiles(*files)
         files.each do |f|
@@ -79,7 +105,7 @@ class WeatherParser
         puts "Thermal sensation hotest day:\n #{self.thermalSensationHotestDay}"
         puts "Monthly precipitation average:\n #{self.precipitationAverage}"
         puts "Instrument failures:\n #{self.instrumentFailure}"
-        puts "Worst intrument:\n #{self.worstInstrument[0]}"
+        puts "Worst instrument:\n #{self.worstInstrument[0]}"
     end
     def dailyTemperature()
         @dailyTempAVG.to_s
@@ -115,10 +141,15 @@ class WeatherParser
         @precipitationsAVG.to_s
     end
     def instrumentFailure
-        @instrumentFailure.reduce("") {|str, (k,v)| str + "Intrument #{k} has: #{ v / @lineCounter}\n"}
+        @instrumentFailure.reduce("") {|str, (k,v)| str + "Instrument #{k} has: #{ v / @lineCounter}\n"}
     end
     def worstInstrument
-        h.max_by{|k,v| v}
+        (k,v) = @instrumentFailure.max_by{|k,v| v}
+        if(v == 0)then
+            nil
+        else
+            [k,v]
+        end
     end
     private
     def parseTemperature(time,temperature)
@@ -127,8 +158,8 @@ class WeatherParser
             @monthlyTempAVG.increment("#{time.year}/#{time.month}", temp)
             @dailyTempAVG.increment("#{time.year}/#{time.month}/#{time.day}", temp)
             
-            @coldestDay.check("#{time.year}/#{time.month}", temp, time.day)
-            @hotestDay.check("#{time.year}/#{time.month}", temp, time.day)
+            @coldestDay.checkTempTo("#{time.year}/#{time.month}", temp, time.day)
+            @hotestDay.checkTempTo("#{time.year}/#{time.month}", temp, time.day)
 
             @dailyThermalAmplitude.add("#{time.year}/#{time.month}/#{time.day}", temp)
         rescue ArgumentError
@@ -141,8 +172,8 @@ class WeatherParser
             @monthlyTempAVGTS.increment("#{time.year}/#{time.month}", temp)
             @dailyTempAVGTS.increment("#{time.year}/#{time.month}/#{time.day}", temp)
             
-            @coldestDayTS.check("#{time.year}/#{time.month}", temp, time.day)
-            @hotestDayTS.check("#{time.year}/#{time.month}", temp, time.day)
+            @coldestDayTS.checkTempTo("#{time.year}/#{time.month}", temp, time.day)
+            @hotestDayTS.checkTempTo("#{time.year}/#{time.month}", temp, time.day)
 
             @dailyThermalAmplitudeTS.add("#{time.year}/#{time.month}/#{time.day}", temp)
         rescue ArgumentError
